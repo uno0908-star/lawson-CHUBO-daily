@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>厨房検証 分析ダッシュボード</title>
+<style>
+:root{--bg:#f0f4f8;--card:#fff;--border:#e2e8f0;--text:#1a202c;--text2:#718096;--blue:#2b6cb0;--green:#276749;--red:#c53030;--orange:#c05621;--purple:#6b46c1;--teal:#2c7a7b;--r:10px;--shadow:0 1px 3px rgba(0,0,0,.1),0 4px 12px rgba(0,0,0,.06);}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+/* HEADER */
+.hdr{background:linear-gradient(135deg,#1a365d,#2b6cb0);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.hdr-logo{background:rgba(255,255,255,.2);border-radius:6px;padding:4px 10px;font-weight:800;font-size:13px;letter-spacing:1px;}
+.hdr-title{font-size:15px;font-weight:700;}
+.hdr-sub{font-size:10px;opacity:.75;margin-left:auto;text-align:right;line-height:1.4;}
+/* NAV TABS */
+.nav{background:#fff;border-bottom:1px solid var(--border);display:flex;overflow-x:auto;scrollbar-width:none;position:sticky;top:49px;z-index:190;-webkit-overflow-scrolling:touch;}
+.nav::-webkit-scrollbar{display:none;}
+.nav-tab{flex:none;padding:11px 14px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;}
+.nav-tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+/* CONTENT */
+.page{display:none;padding:12px;}
+.page.active{display:block;}
+/* CARD */
+.card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:12px;box-shadow:var(--shadow);}
+.card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.card-title::before{content:'';width:4px;height:16px;background:var(--blue);border-radius:2px;flex-shrink:0;}
+.card-note{font-size:10px;color:var(--text2);font-weight:400;}
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
+.kpi{background:var(--card);border-radius:var(--r);padding:12px;box-shadow:var(--shadow);}
+.kpi-label{font-size:10px;color:var(--text2);margin-bottom:4px;font-weight:500;}
+.kpi-val{font-size:22px;font-weight:800;line-height:1.1;}
+.kpi-sub{font-size:10px;color:var(--text2);margin-top:3px;}
+/* BADGE */
+.badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;}
+.g{background:#c6f6d5;color:#22543d;}.w{background:#fff5f5;color:#c53030;}.y{background:#fefcbf;color:#744210;}.b{background:#ebf8ff;color:#2c5282;}.p{background:#faf5ff;color:#553c9a;}
+/* CANVAS WRAP */
+.chart-wrap{position:relative;width:100%;}
+canvas{display:block;width:100%!important;}
+/* TOOLTIP */
+#tooltip{position:fixed;background:rgba(26,32,44,.92);color:#fff;border-radius:8px;padding:8px 12px;font-size:12px;line-height:1.6;pointer-events:none;z-index:999;max-width:200px;display:none;box-shadow:0 4px 16px rgba(0,0,0,.3);}
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{background:#edf2f7;color:var(--text2);font-size:10px;font-weight:700;padding:7px 8px;text-align:center;border-bottom:2px solid var(--border);white-space:nowrap;}
+.tbl th:first-child{text-align:left;}
+.tbl td{padding:7px 8px;text-align:center;border-bottom:1px solid #f7fafc;}
+.tbl td:first-child{text-align:left;font-weight:600;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:#f7fafc;}
+/* SELECT */
+.sel{background:#fff;border:1px solid var(--border);color:var(--text);font-size:13px;padding:8px 10px;border-radius:8px;width:100%;margin-bottom:10px;outline:none;-webkit-appearance:none;}
+/* SC CARDS */
+.sc-card{border-radius:var(--r);overflow:hidden;margin-bottom:10px;box-shadow:var(--shadow);}
+.sc-hdr{padding:10px 14px;color:#fff;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;}
+.sc-body{background:#fff;padding:10px 14px;}
+/* HEATMAP */
+.hm-cell{height:32px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;}
+/* OVERFLOW */
+.ovx{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+/* CTRL BAR */
+.ctrl{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;}
+.cat-pill{padding:5px 12px;border-radius:20px;border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;background:#fff;white-space:nowrap;}
+.cat-pill.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+/* MISC TIER */
+.mt{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;}
+.mt0{background:#edf2f7;color:#718096;}.mt7{background:#ebf8ff;color:#2b6cb0;}.mt8{background:#c6f6d5;color:#22543d;}.mt10{background:#fefcbf;color:#744210;}
+/* PROFIT GRID */
+.profit-grid{display:grid;grid-template-columns:1fr;gap:10px;}
+@media(min-width:900px){.profit-grid{grid-template-columns:1fr 1fr;}}@media(max-width:480px){.profit-grid{grid-template-columns:1fr;}.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+/* LEGEND */
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;}
+.leg{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text2);}
+.leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+/* GROWTH RANK */
+.rank-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0f4f8;}
+.rank-row:last-child{border-bottom:none;}
+.rank-bar-wrap{flex:1;height:6px;background:#edf2f7;border-radius:3px;overflow:hidden;}
+.rank-bar{height:100%;border-radius:3px;}
+</style>
+</head>
+<body>
+<div id="tooltip"></div>
+<div class="hdr">
+  <div class="hdr-logo">LAWSON</div>
+  <div class="hdr-title">厨房検証 分析</div>
+  <div class="hdr-sub">2026年2〜3月<br>16店舗＋支店/MO</div>
+</div>
+<div class="nav">
+  <div class="nav-tab active" onclick="showPage('p-overview',this)">📊 概要</div>
+  <div class="nav-tab" onclick="showPage('p-sc',this)">👥 SC別</div>
+  <div class="nav-tab" onclick="showPage('p-store',this)">🏪 個店</div>
+  <div class="nav-tab" onclick="showPage('p-weekday',this)">📅 曜日</div>
+  <div class="nav-tab" onclick="showPage('p-heatmap',this)">🔥 廃棄MAP</div>
+  <div class="nav-tab" onclick="showPage('p-misc',this)">💰 雑益</div>
+  <div class="nav-tab" onclick="showPage('p-profit',this)">💹 荒利益</div>
+</div>
+
+<!-- ===== 概要 ===== -->
+<div id="p-overview" class="page active">
+  <div class="kpi-grid" id="kpi-top"></div>
+  <div class="card">
+    <div class="card-title">曜日別 販売数PSA/D（組織平均）<span class="card-note">全カテゴリ合計</span></div>
+    <div class="legend"><div class="leg"><div class="leg-dot" style="background:#2b6cb0"></div>2月</div><div class="leg"><div class="leg-dot" style="background:#276749"></div>3月</div></div>
+    <div class="chart-wrap"><canvas id="c-wd-org" height="180"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">店舗別 伸長率ランキング<span class="card-note">1日平均売上高ベース</span></div>
+    <div id="rank-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">全店舗 総合評価</div>
+    <div class="ovx"><table class="tbl" id="tbl-overview"></table></div>
+  </div>
+</div>
+
+<!-- ===== SC別 ===== -->
+<div id="p-sc" class="page">
+  <div id="sc-wrap"></div>
+</div>
+
+<!-- ===== 個店 ===== -->
+<div id="p-store" class="page">
+  <select class="sel" id="sel-store" onchange="renderStore()"></select>
+  <div class="ctrl" id="store-cats">
+    <div class="cat-pill active" onclick="setStoreCat('全体',this)">全体</div>
+    <div class="cat-pill" onclick="setStoreCat('弁当',this)">弁当</div>
+    <div class="cat-pill" onclick="setStoreCat('調理パン',this)">調理パン</div>
+    <div class="cat-pill" onclick="setStoreCat('総菜',this)">総菜</div>
+  </div>
+  <div class="kpi-grid" id="store-kpi"></div>
+  <div class="card">
+    <div class="card-title">曜日別 販売数PSA/D</div>
+    <div class="legend"><div class="leg"><div class="leg-dot" style="background:#2b6cb0"></div>2月</div><div class="leg"><div class="leg-dot" style="background:#276749"></div>3月</div></div>
+    <div class="chart-wrap"><canvas id="c-store-sales" height="180"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">曜日別 廃棄率(%)</div>
+    <div class="legend"><div class="leg"><div class="leg-dot" style="background:#2b6cb0"></div>2月</div><div class="leg"><div class="leg-dot" style="background:#c53030"></div>3月</div></div>
+    <div class="chart-wrap"><canvas id="c-store-wr" height="180"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">カテゴリ別 販売高（1日平均）<span class="card-note">営業日数で割った平均値</span></div>
+    <div class="legend"><div class="leg"><div class="leg-dot" style="background:#2b6cb0"></div>2月</div><div class="leg"><div class="leg-dot" style="background:#276749"></div>3月</div><div class="leg"><div class="leg-dot" style="background:#c53030"></div>廃棄(3月)</div></div>
+    <div class="chart-wrap"><canvas id="c-store-cat" height="160"></canvas></div>
+  </div>
+</div>
+
+<!-- ===== 曜日 ===== -->
+<div id="p-weekday" class="page">
+  <div class="ctrl">
+    <div id="wd-cats" style="display:flex;gap:6px;flex-wrap:wrap">
+      <div class="cat-pill active" onclick="setWdCat('全体',this)">全体</div>
+      <div class="cat-pill" onclick="setWdCat('弁当',this)">弁当</div>
+      <div class="cat-pill" onclick="setWdCat('調理パン',this)">調理パン</div>
+      <div class="cat-pill" onclick="setWdCat('総菜',this)">総菜</div>
+    </div>
+    <select class="sel" id="wd-store" style="margin:0;width:auto;flex:1;min-width:130px" onchange="renderWdCharts()"><option value="__org__">組織平均</option></select>
+  </div>
+  <div class="card">
+    <div class="card-title">曜日別 販売数PSA/D</div>
+    <div class="legend"><div class="leg"><div class="leg-dot" style="background:#2b6cb0"></div>2月</div><div class="leg"><div class="leg-dot" style="background:#276749"></div>3月</div></div>
+    <div class="chart-wrap"><canvas id="c-wd-sales" height="200"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">曜日別 廃棄率(%)<span class="card-note">──10%ライン</span></div>
+    <div class="legend"><div class="leg"><div class="leg-dot" style="background:#2b6cb0"></div>2月</div><div class="leg"><div class="leg-dot" style="background:#c53030"></div>3月</div></div>
+    <div class="chart-wrap"><canvas id="c-wd-wr" height="200"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">詳細テーブル</div>
+    <div class="ovx"><table class="tbl" id="tbl-wd"></table></div>
+  </div>
+</div>
+
+<!-- ===== 廃棄MAP ===== -->
+<div id="p-heatmap" class="page">
+  <select class="sel" id="hm-grp" onchange="renderHeatmap()"><option value="__all__">全店舗</option></select>
+  <div class="card">
+    <div class="card-title">店舗×曜日 廃棄率ヒートマップ（3月）</div>
+    <div class="legend">
+      <div class="leg"><div class="leg-dot" style="background:#c6f6d5"></div>〜5%</div>
+      <div class="leg"><div class="leg-dot" style="background:#fefcbf"></div>5〜10%</div>
+      <div class="leg"><div class="leg-dot" style="background:#fbd38d"></div>10〜15%</div>
+      <div class="leg"><div class="leg-dot" style="background:#fc8181"></div>15%超</div>
+    </div>
+    <div class="ovx" id="hm-wrap"></div>
+  </div>
+</div>
+
+<!-- ===== 雑益 ===== -->
+<div id="p-misc" class="page">
+  <div class="card" style="background:linear-gradient(135deg,#ebf8ff,#f0fff4);border:1px solid #bee3f8;">
+    <div class="card-title">雑益ルール（月合計 = 1日雑益 × 営業日数）</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px">
+      <div><span class="mt mt7">7%</span> ≥1万円/日</div>
+      <div><span class="mt mt8">8%</span> ≥2万円/日</div>
+      <div><span class="mt mt10">10%</span> ≥3万円/日</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">店舗別 雑益試算（月合計）</div>
+    <div class="ovx"><table class="tbl" id="tbl-misc"></table></div>
+  </div>
+</div>
+
+<!-- ===== 荒利益 ===== -->
+<div id="p-profit" class="page">
+  <select class="sel" id="profit-sel" onchange="renderProfit()"><option value="__all__">全店舗グリッド</option></select>
+  <div id="profit-wrap"></div>
+</div>
+
+<script>
+const D={"weekdays":["月","火","水","木","金","土","日"],"categories":["弁当","調理パン","総菜"],"stores":["五月ケ丘東","南金田二丁目","吹田支店","吹田朝日町","吹田警察署前","吹田豊津中学校前","吹田青山台三丁目","大道南一丁目","新御堂筋上新田","東淀川大道南","東淀川豊里五丁目","江坂東","江坂駅南口","箕面白島二丁目","豊中利倉東一丁目","豊中原田南一丁目","豊中服部元町一丁目","阪口清治 MO"],"sc_groups":{"髙橋SC":["吹田青山台三丁目","五月ケ丘東","江坂駅南口","新御堂筋上新田"],"五島SC":["吹田警察署前","南金田二丁目"],"プラカスSC":["東淀川大道南","大道南一丁目","吹田朝日町","東淀川豊里五丁目"],"ダハルSC":["江坂東","豊中利倉東一丁目"],"ビスワスSC":["豊中服部元町一丁目","豊中原田南一丁目","箕面白島二丁目"],"フィSC":["吹田豊津中学校前"],"吹田支店":["吹田支店"],"阪口清治 MO":["阪口清治 MO"]},"asc_groups":{"サントスASC":["東淀川豊里五丁目","大道南一丁目"],"スラズASC":["豊中原田南一丁目","箕面白島二丁目"]},"wd_sales_feb":{"弁当":[25.9,27.1,24.8,27.1,25.9,21.5,16.9],"調理パン":[14.9,15.3,15.5,16.0,15.9,14.9,12.9],"総菜":[2.9,3.5,3.6,4.0,4.1,3.3,1.9]},"wd_sales_mar":{"弁当":[26.0,26.9,25.9,26.5,24.4,21.3,16.0],"調理パン":[15.0,14.7,15.7,15.0,15.1,15.0,11.9],"総菜":[4.9,5.5,5.0,4.8,4.9,4.3,3.4]},"wr_feb":{"弁当":[4.3,4.0,4.7,4.3,4.6,5.6,8.8],"調理パン":[4.0,2.8,4.0,4.8,3.6,3.0,4.2],"総菜":[8.9,10.8,10.4,7.5,10.9,4.6,10.1]},"wr_mar":{"弁当":[6.4,5.8,8.4,7.3,7.7,10.6,11.8],"調理パン":[9.4,7.7,8.9,8.3,6.6,7.4,3.7],"総菜":[9.0,13.8,11.5,14.5,17.5,9.0,17.1]},"store_data":{"五月ケ丘東":{"feb_cat":{"弁当":0,"調理パン":0,"総菜":0},"mar_cat":{"弁当":0,"調理パン":8721,"総菜":0},"waste_cat":{"弁当":0,"調理パン":4580,"総菜":0},"tot_feb":0,"tot_mar":8721,"tot_waste":4580,"opd_feb":1,"opd_mar":7,"daily_avg_feb":0,"daily_avg_mar":1246,"misc_feb":0,"misc_mar":0,"misc_pct_feb":0,"misc_pct_mar":0,"growth_pct":0,"waste_rate":34.4,"best_wd":"日","worst_wd":"火","worst_waste_wd":"金","wd_sales_feb":{"弁当":[0.0,0.0,0.0,0.0,0.0,0.0,0.0],"調理パン":[0.0,0.0,0.0,0.0,0.0,0.0,0.0],"総菜":[0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"wd_sales_mar":{"弁当":[0.0,0.0,0.0,0.0,0.0,0.0,0.0],"調理パン":[1.0,0.0,0.3,1.0,0.0,0.7,2.2],"総菜":[0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"wd_wr_feb":{"弁当":[0.0,0.0,0.0,0.0,0.0,0.0,99.6],"調理パン":[0.0,0.0,0.0,0.0,0.0,0.0,0.0],"総菜":[0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"wd_wr_mar":{"弁当":[0.0,0.0,0.0,0.0,0.0,0.0,0.0],"調理パン":[50.0,0.0,74.9,0.0,99.7,0.0,18.2],"総菜":[0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"heatmap_feb":[0.0,0.0,0.0,0.0,0.0,0.0,99.2],"heatmap_mar":[50.0,0.0,74.9,0.0,99.4,0.0,18.2],"misc_feb_monthly":0,"misc_mar_monthly":0,"misc_mar_monthly_act":0},"南金田二丁目":{"feb_cat":{"弁当":406197,"調理パン":117788,"総菜":19274},"mar_cat":{"弁当":291742,"調理パン":58832,"総菜":16751},"waste_cat":{"弁当":19092,"調理パン":8846,"総菜":6676},"tot_feb":543259,"tot_mar":367325,"tot_waste":34614,"opd_feb":26,"opd_mar":21,"daily_avg_feb":20895,"daily_avg_mar":17492,"misc_feb":1672,"misc_mar":1224,"misc_pct_feb":8,"misc_pct_mar":7,"growth_pct":-16.3,"waste_rate":8.6,"best_wd":"木","worst_wd":"日","worst_waste_wd":"土","wd_sales_feb":{"弁当":[30.0,35.0,34.0,32.8,25.0,27.0,27.8],"調理パン":[8.2,7.2,13.0,12.2,8.8,13.8,8.5],"総菜":[2.0,3.8,2.2,2.5,3.2,3.0,0.0]},"wd_sales_mar":{"弁当":[26.0,35.3,26.0,35.7,27.7,26.7,5.2],"調理パン":[6.5,7.0,8.3,7.3,6.3,11.0,4.5],"総菜":[2.2,2.7,1.0,3.3,2.7,4.0,1.0]},"wd_wr_feb":{"弁当":[3.2,3.4,2.9,1.5,9.9,4.4,2.6],"調理パン":[0.0,0.0,0.0,10.9,10.3,0.0,5.6],"総菜":[0.0,0.0,10.0,16.7,31.6,0.0,99.6]},"wd_wr_mar":{"弁当":[0.0,0.0,6.0,4.5,0.0,14.9,22.2],"調理パン":[7.1,12.5,19.4,15.4,9.5,13.2,0.0],"総菜":[0.0,20.0,57.1,37.5,11.1,20.0,20.0]},"heatmap_feb":[2.4,2.6,2.5,5.0,12.4,2.8,4.0],"heatmap_mar":[1.4,3.6,12.4,9.7,2.7,15.0,14.0],"misc_feb_monthly":43472,"misc_mar_monthly":37944,"misc_mar_monthly_act":25704},"吹田支店":{"feb_cat":{"弁当":201397,"調理パン":80942,"総菜":6716},"mar_cat":{"弁当":158206,"調理パン":54414,"総菜":7551},"waste_cat":{"弁当":19811,"調理パン":5958,"総菜":1567},"tot_feb":289055,"tot_mar":220171,"tot_waste":27336,"opd_feb":28,"opd_mar":23,"daily_avg_feb":10323,"daily_avg_mar":9573,"misc_feb":723,"misc_mar":0,"misc_pct_feb":7,"misc_pct_mar":0,"growth_pct":-7.3,"waste_rate":11.0,"best_wd":"火","worst_wd":"日","worst_waste_wd":"日","wd_sales_feb":{"弁当":[15.8,16.4,14.5,16.3,16.1,12.1,9.5],"調理パン":[8.2,8.7,8.2,8.9,8.9,7.9,6.7],"総菜":[0.8,1.0,0.9,1.0,1.0,0.7,0.5]},"wd_sales_mar":{"弁当":[15.3,15.8,15.5,15.6,14.0,11.3,8.3],"調理パン":[7.7,7.7,7.8,7.7,7.7,7.1,6.3],"総菜":[1.3,1.3,1.3,1.4,1.3,1.0,0.8]},"wd_wr_feb":{"弁当":[6.7,8.0,7.3,7.3,7.7,8.4,13.3],"調理パン":[6.9,5.8,5.7,6.5,5.1,5.0,8.1],"総菜":[9.1,12.4,10.2,9.3,12.7,8.0,13.2]},"wd_wr_mar":{"弁当":[7.3,8.0,8.2,9.7,9.6,11.1,14.4],"調理パン":[8.9,9.3,9.0,10.6,8.2,7.8,7.3],"総菜":[9.1,14.8,12.6,11.4,15.3,12.6,17.4]},"heatmap_feb":[6.8,7.5,6.8,7.1,7.1,7.2,11.3],"heatmap_mar":[7.9,8.8,8.7,10.1,9.5,10.0,11.8],"misc_feb_monthly":20244,"misc_mar_monthly":0,"misc_mar_monthly_act":0},"吹田朝日町":{"feb_cat":{"弁当":394187,"調理パン":204389,"総菜":25174},"mar_cat":{"弁当":316067,"調理パン":170278,"総菜":24555},"waste_cat":{"弁当":27702,"調理パン":10920,"総菜":3680},"tot_feb":623750,"tot_mar":510900,"tot_waste":42302,"opd_feb":28,"opd_mar":23,"daily_avg_feb":22277,"daily_avg_mar":22213,"misc_feb":1782,"misc_mar":1777,"misc_pct_feb":8,"misc_pct_mar":8,"growth_pct":-0.3,"waste_rate":7.6,"best_wd":"木","worst_wd":"日","worst_waste_wd":"土","wd_sales_feb":{"弁当":[34.5,32.8,34.2,32.5,32.8,30.0,12.2],"調理パン":[21.2,21.8,22.8,22.2,22.8,21.5,19.5],"総菜":[1.8,3.0,4.5,4.0,3.8,3.5,0.2]},"wd_sales_mar":{"弁当":[31.5,35.0,35.0,35.3,34.0,31.3,15.8],"調理パン":[24.5,26.7,26.3,27.7,25.0,22.7,18.2],"総菜":[3.2,4.3,4.3,4.7,5.0,4.3,4.2]},"wd_wr_feb":{"弁当":[2.1,1.5,1.4,3.0,3.0,2.4,2.0],"調理パン":[1.2,3.3,0.0,0.0,0.0,3.4,6.0],"総菜":[0.0,29.4,21.7,0.0,16.7,6.7,0.0]},"wd_wr_mar":{"弁当":[5.3,1.9,3.7,4.5,2.9,10.5,16.0],"調理パン":[3.0,2.4,8.1,1.2,5.1,13.9,2.7],"総菜":[0.0,23.5,18.7,6.7,0.0,7.1,5.6]},"heatmap_feb":[1.7,4.2,2.8,1.7,2.9,3.1,4.5],"heatmap_mar":[4.0,3.9,6.6,3.3,3.5,11.6,8.9],"misc_feb_monthly":49896,"misc_mar_monthly":55087,"misc_mar_monthly_act":40871},"吹田警察署前":{"feb_cat":{"弁当":252892,"調理パン":59680,"総菜":0},"mar_cat":{"弁当":226876,"調理パン":41660,"総菜":0},"waste_cat":{"弁当":24561,"調理パン":428,"総菜":0},"tot_feb":312572,"tot_mar":268536,"tot_waste":24989,"opd_feb":17,"opd_mar":15,"daily_avg_feb":18387,"daily_avg_mar":17902,"misc_feb":1287,"misc_mar":1253,"misc_pct_feb":7,"misc_pct_mar":7,"growth_pct":-2.6,"waste_rate":8.5,"best_wd":"木","worst_wd":"土","worst_waste_wd":"土","wd_sales_feb":{"弁当":[22.8,28.0,18.0,28.8,22.2,0.0,0.0],"調理パン":[6.5,9.8,6.2,10.0,8.5,0.0,0.0],"総菜":[0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"wd_sales_mar":{"弁当":[29.2,30.0,26.0,32.3,17.7,0.0,0.0],"調理パン":[7.8,8.3,8.0,9.7,7.3,0.0,0.0],"総菜":[0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"wd_wr_feb":{"弁当":[1.1,1.8,17.2,10.9,15.2,99.9,0.0],"調理パン":[0.0,4.9,3.8,4.8,8.1,0.0,0.0],"総菜":[0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"wd_wr_mar":{"弁当":[2.5,4.3,13.3,6.7,10.2,100.0,0.0],"調理パン":[3.1,0.0,0.0,0.0,0.0,0.0,0.0],"総菜":[0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"heatmap_feb":[0.8,2.6,14.2,9.4,13.4,99.8,0.0],"heatmap_mar":[2.6,3.4,10.5,5.3,7.4,99.9,0.0],"misc_feb_monthly":21879,"misc_mar_monthly":38843,"misc_mar_monthly_act":18795},"吹田豊津中学校前":{"feb_cat":{"弁当":359864,"調理パン":63964,"総菜":36666},"mar_cat":{"弁当":327904,"調理パン":53963,"総菜":34028},"waste_cat":{"弁当":16514,"調理パン":3846,"総菜":736},"tot_feb":460494,"tot_mar":415895,"tot_waste":21096,"opd_feb":28,"opd_mar":23,"daily_avg_feb":16446,"daily_avg_mar":18082,"misc_feb":1151,"misc_mar":1266,"misc_pct_feb":7,"misc_pct_mar":7,"growth_pct":9.9,"waste_rate":4.8,"best_wd":"木","worst_wd":"土","worst_waste_wd":"日","wd_sales_feb":{"弁当":[27.2,29.8,23.5,30.2,30.2,14.8,7.0],"調理パン":[6.0,5.5,6.0,7.5,7.8,6.2,5.5],"総菜":[4.0,5.0,4.8,5.5,5.5,3.2,1.8]},"wd_sales_mar":{"弁当":[32.2,30.7,31.7,30.3,28.7,11.3,13.2],"調理パン":[6.5,6.7,8.0,9.0,7.7,5.7,6.0],"総菜":[6.5,6.0,5.3,6.3,5.0,2.0,3.0]},"wd_wr_feb":{"弁当":[0.9,0.0,4.1,0.0,0.0,6.3,9.7],"調理パン":[0.0,0.0,4.0,0.0,0.0,0.0,0.0],"総菜":[5.9,0.0,0.0,0.0,0.0,0.0,12.5]},"wd_wr_mar":{"弁当":[0.8,0.0,6.9,2.2,4.4,5.6,17.2],"調理パン":[7.1,0.0,17.2,0.0,0.0,10.5,11.1],"総菜":[0.0,0.0,5.9,5.0,0.0,0.0,0.0]},"heatmap_feb":[1.3,0.0,3.5,0.0,0.0,4.0,6.6],"heatmap_mar":[1.6,0.0,8.8,2.1,3.1,6.6,13.6],"misc_feb_monthly":32228,"misc_mar_monthly":39246,"misc_mar_monthly_act":29118},"吹田青山台三丁目":{"feb_cat":{"弁当":437288,"調理パン":141556,"総菜":26543},"mar_cat":{"弁当":362835,"調理パン":82404,"総菜":22869},"waste_cat":{"弁当":58305,"調理パン":2290,"総菜":4784},"tot_feb":605387,"tot_mar":468108,"tot_waste":65379,"opd_feb":28,"opd_mar":23,"daily_avg_feb":21621,"daily_avg_mar":20353,"misc_feb":1730,"misc_mar":1628,"misc_pct_feb":8,"misc_pct_mar":8,"growth_pct":-5.9,"waste_rate":12.3,"best_wd":"土","worst_wd":"日","worst_waste_wd":"日","wd_sales_feb":{"弁当":[35.2,40.2,31.8,35.0,31.5,28.8,24.0],"調理パン":[10.2,10.2,12.8,14.8,13.8,20.8,14.8],"総菜":[3.8,3.0,4.0,3.0,3.2,4.2,3.8]},"wd_sales_mar":{"弁当":[31.0,29.3,31.3,32.7,28.7,36.3,20.0],"調理パン":[9.0,9.7,9.3,9.7,11.0,15.3,9.2],"総菜":[3.0,4.3,3.0,3.7,5.3,5.3,4.2]},"wd_wr_feb":{"弁当":[9.6,12.5,11.2,8.5,8.7,8.7,36.4],"調理パン":[10.9,0.0,0.0,0.0,0.0,0.0,9.2],"総菜":[6.2,33.3,5.9,20.0,23.5,0.0,0.0]},"wd_wr_mar":{"弁当":[11.4,15.4,6.9,3.0,7.5,2.7,30.4],"調理パン":[5.3,3.3,0.0,6.5,0.0,0.0,0.0],"総菜":[7.7,0.0,25.0,15.4,5.9,0.0,26.1]},"heatmap_feb":[9.6,11.9,8.1,7.0,7.6,4.9,26.4],"heatmap_mar":[9.9,11.6,7.1,4.8,5.6,1.7,23.4],"misc_feb_monthly":48440,"misc_mar_monthly":50468,"misc_mar_monthly_act":37444},"大道南一丁目":{"feb_cat":{"弁当":232012,"調理パン":106712,"総菜":20135},"mar_cat":{"弁当":169636,"調理パン":78477,"総菜":9744},"waste_cat":{"弁当":14667,"調理パン":7322,"総菜":4784},"tot_feb":358859,"tot_mar":257857,"tot_waste":26773,"opd_feb":28,"opd_mar":23,"daily_avg_feb":12816,"daily_avg_mar":11211,"misc_feb":897,"misc_mar":785,"misc_pct_feb":7,"misc_pct_mar":7,"growth_pct":-12.5,"waste_rate":9.4,"best_wd":"火","worst_wd":"日","worst_waste_wd":"木","wd_sales_feb":{"弁当":[20.2,17.0,17.5,19.2,17.5,17.0,15.5],"調理パン":[12.8,13.5,10.8,12.2,11.8,12.2,11.0],"総菜":[2.5,3.5,2.5,3.2,4.0,2.5,1.0]},"wd_sales_mar":{"弁当":[15.2,17.3,15.3,15.3,17.0,16.0,13.8],"調理パン":[10.2,12.0,11.7,10.7,11.3,10.3,10.0],"総菜":[1.2,1.7,2.3,1.7,1.7,1.0,2.5]},"wd_wr_feb":{"弁当":[3.6,5.6,1.4,0.0,5.4,0.0,8.8],"調理パン":[0.0,1.8,10.4,0.0,2.1,3.9,4.3],"総菜":[23.1,12.5,16.7,31.6,30.4,9.1,50.0]},"wd_wr_mar":{"弁当":[3.2,8.8,0.0,14.8,3.8,11.1,1.8],"調理パン":[4.7,7.7,2.8,8.6,12.8,11.4,2.4],"総菜":[0.0,44.4,0.0,16.7,16.7,25.0,37.5]},"heatmap_feb":[4.1,4.9,6.1,4.1,8.3,2.3,9.8],"heatmap_mar":[3.6,11.4,1.1,12.6,8.2,11.8,7.1],"misc_feb_monthly":25116,"misc_mar_monthly":24335,"misc_mar_monthly_act":18055},"新御堂筋上新田":{"feb_cat":{"弁当":296773,"調理パン":154465,"総菜":19340},"mar_cat":{"弁当":276342,"調理パン":107918,"総菜":33642},"waste_cat":{"弁当":51338,"調理パン":8492,"総菜":2646},"tot_feb":470578,"tot_mar":417902,"tot_waste":62476,"opd_feb":27,"opd_mar":22,"daily_avg_feb":17429,"daily_avg_mar":18996,"misc_feb":1220,"misc_mar":1330,"misc_pct_feb":7,"misc_pct_mar":7,"growth_pct":9.0,"waste_rate":13.0,"best_wd":"水","worst_wd":"木","worst_waste_wd":"月","wd_sales_feb":{"弁当":[23.0,25.2,26.0,26.0,25.0,26.8,17.5],"調理パン":[16.2,15.5,14.8,15.8,16.2,16.0,12.5],"総菜":[2.5,2.8,3.0,3.0,3.2,4.0,3.2]},"wd_sales_mar":{"弁当":[30.5,32.7,34.0,21.0,25.0,28.0,21.8],"調理パン":[15.2,13.3,17.7,9.7,15.7,19.0,10.2],"総菜":[8.8,9.3,8.7,5.0,6.0,4.7,5.5]},"wd_wr_feb":{"弁当":[5.2,11.4,1.9,1.0,0.0,1.8,6.7],"調理パン":[0.0,1.6,1.7,1.6,0.0,0.0,0.0],"総菜":[9.1,35.3,7.7,0.0,0.0,15.8,0.0]},"wd_wr_mar":{"弁当":[18.1,2.0,9.7,13.7,2.6,17.6,11.2],"調理パン":[11.6,9.1,1.9,9.4,2.1,1.7,2.4],"総菜":[5.4,3.4,0.0,6.2,0.0,6.7,8.3]},"heatmap_feb":[3.5,10.3,2.2,1.1,0.0,2.6,3.6],"heatmap_mar":[14.5,4.0,6.2,11.6,2.1,11.4,8.5],"misc_feb_monthly":32940,"misc_mar_monthly":41230,"misc_mar_monthly_act":29260},"東淀川大道南":{"feb_cat":{"弁当":257610,"調理パン":164515,"総菜":31922},"mar_cat":{"弁当":188201,"調理パン":120699,"総菜":22373},"waste_cat":{"弁当":3130,"調理パン":5700,"総菜":4048},"tot_feb":454047,"tot_mar":331273,"tot_waste":12878,"opd_feb":28,"opd_mar":23,"daily_avg_feb":16216,"daily_avg_mar":14403,"misc_feb":1135,"misc_mar":1008,"misc_pct_feb":7,"misc_pct_mar":7,"growth_pct":-11.2,"waste_rate":3.7,"best_wd":"日","worst_wd":"木","worst_waste_wd":"月","wd_sales_feb":{"弁当":[24.0,21.5,20.5,21.0,21.0,21.2,25.0],"調理パン":[18.0,16.5,18.5,18.0,19.2,15.8,22.0],"総菜":[5.0,4.0,4.0,4.5,5.0,5.8,4.2]},"wd_sales_mar":{"弁当":[19.0,19.3,19.0,18.7,18.3,18.3,18.0],"調理パン":[16.0,17.3,17.0,15.0,17.0,17.0,20.8],"総菜":[4.5,4.7,4.0,4.0,3.7,3.3,3.0]},"wd_wr_feb":{"弁当":[0.0,0.0,0.0,4.5,0.0,0.0,0.0],"調理パン":[7.7,2.9,3.9,6.5,0.0,7.4,4.3],"総菜":[0.0,11.1,0.0,5.3,0.0,0.0,0.0]},"wd_wr_mar":{"弁当":[0.0,0.0,0.0,0.0,3.5,0.0,4.0],"調理パン":[4.5,3.7,1.9,10.0,5.6,0.0,1.2],"総菜":[25.0,12.5,0.0,0.0,0.0,9.1,14.3]},"heatmap_feb":[3.1,2.3,1.7,5.4,0.0,2.8,1.9],"heatmap_mar":[5.4,3.1,0.8,4.2,4.1,0.9,3.5],"misc_feb_monthly":31780,"misc_mar_monthly":31248,"misc_mar_monthly_act":23184},"東淀川豊里五丁目":{"feb_cat":{"弁当":385126,"調理パン":236221,"総菜":35387},"mar_cat":{"弁当":278261,"調理パン":186136,"総菜":26584},"waste_cat":{"弁当":10397,"調理パン":18464,"総菜":4416},"tot_feb":656734,"tot_mar":490981,"tot_waste":33277,"opd_feb":28,"opd_mar":23,"daily_avg_feb":23455,"daily_avg_mar":21347,"misc_feb":1876,"misc_mar":1708,"misc_pct_feb":8,"misc_pct_mar":8,"growth_pct":-9.0,"waste_rate":6.3,"best_wd":"土","worst_wd":"火","worst_waste_wd":"火","wd_sales_feb":{"弁当":[31.2,29.8,29.0,29.8,28.2,29.8,31.5],"調理パン":[27.2,24.0,26.8,23.5,24.2,25.2,25.8],"総菜":[6.0,4.8,5.0,6.2,5.0,4.8,2.8]},"wd_sales_mar":{"弁当":[26.5,22.3,24.0,26.0,27.3,26.0,26.2],"調理パン":[25.5,22.0,28.7,24.0,28.3,30.3,27.0],"総菜":[4.5,4.3,2.7,3.7,4.3,5.7,5.8]},"wd_wr_feb":{"弁当":[5.3,0.8,0.9,0.8,0.0,0.8,0.8],"調理パン":[4.4,5.9,7.8,6.9,6.7,5.6,1.0],"総菜":[11.1,0.0,0.0,0.0,0.0,0.0,15.4]},"wd_wr_mar":{"弁当":[1.9,1.5,11.1,1.3,2.4,1.3,0.0],"調理パン":[11.3,20.5,7.5,6.5,11.5,2.2,2.7],"総菜":[14.3,13.3,11.1,15.4,18.7,0.0,4.2]},"heatmap_feb":[5.5,2.9,4.0,3.3,3.0,2.8,1.6],"heatmap_mar":[7.4,12.0,9.3,4.7,8.2,1.6,1.7],"misc_feb_monthly":52528,"misc_mar_monthly":52948,"misc_mar_monthly_act":39284},"江坂東":{"feb_cat":{"弁当":449754,"調理パン":121317,"総菜":4710},"mar_cat":{"弁当":366145,"調理パン":74760,"総菜":13022},"waste_cat":{"弁当":37698,"調理パン":886,"総菜":0},"tot_feb":575781,"tot_mar":453927,"tot_waste":38584,"opd_feb":28,"opd_mar":23,"daily_avg_feb":20564,"daily_avg_mar":19736,"misc_feb":1645,"misc_mar":1382,"misc_pct_feb":8,"misc_pct_mar":7,"growth_pct":-4.0,"waste_rate":7.8,"best_wd":"月","worst_wd":"日","worst_waste_wd":"日","wd_sales_feb":{"弁当":[34.5,37.2,33.2,36.5,36.5,21.8,19.2],"調理パン":[12.5,11.0,13.0,15.2,14.8,8.5,8.5],"総菜":[0.5,0.5,0.5,1.0,1.2,0.0,0.0]},"wd_sales_mar":{"弁当":[39.2,38.3,38.7,37.0,30.0,23.3,20.0],"調理パン":[13.8,12.3,13.0,13.0,10.0,5.0,4.8],"総菜":[3.0,2.7,2.7,2.7,2.0,0.0,0.0]},"wd_wr_feb":{"弁当":[2.1,2.6,2.2,11.0,6.4,4.4,12.5],"調理パン":[0.0,2.2,5.5,0.0,0.0,0.0,0.0],"総菜":[0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"wd_wr_mar":{"弁当":[6.0,9.4,1.7,11.2,7.2,7.9,12.1],"調理パン":[0.0,5.1,0.0,0.0,0.0,0.0,0.0],"総菜":[0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"heatmap_feb":[1.6,2.5,3.1,7.9,4.5,3.2,9.0],"heatmap_mar":[4.3,8.0,1.2,8.1,5.3,6.6,10.0],"misc_feb_monthly":46060,"misc_mar_monthly":42842,"misc_mar_monthly_act":31786},"江坂駅南口":{"feb_cat":{"弁当":496494,"調理パン":290757,"総菜":57564},"mar_cat":{"弁当":445062,"調理パン":223275,"総菜":113200},"waste_cat":{"弁当":59769,"調理パン":29112,"総菜":37552},"tot_feb":844815,"tot_mar":781537,"tot_waste":126433,"opd_feb":28,"opd_mar":23,"daily_avg_feb":30172,"daily_avg_mar":33980,"misc_feb":3017,"misc_mar":3398,"misc_pct_feb":10,"misc_pct_mar":10,"growth_pct":12.6,"waste_rate":13.9,"best_wd":"火","worst_wd":"日","worst_waste_wd":"金","wd_sales_feb":{"弁当":[35.5,39.5,38.8,42.0,40.8,34.5,31.5],"調理パン":[34.5,40.5,38.2,36.0,36.5,31.8,29.8],"総菜":[5.0,9.0,9.0,11.0,9.5,6.2,3.8]},"wd_sales_mar":{"弁当":[41.2,49.7,43.7,48.7,42.0,39.3,37.5],"調理パン":[38.0,38.7,40.0,41.0,36.7,29.3,26.8],"総菜":[17.2,23.3,21.7,19.0,21.3,16.0,12.8]},"wd_wr_feb":{"弁当":[4.7,0.0,6.1,2.9,6.3,3.5,3.1],"調理パン":[7.4,3.0,2.5,8.9,11.5,0.8,0.8],"総菜":[9.1,2.7,14.3,12.0,9.5,3.8,11.8]},"wd_wr_mar":{"弁当":[7.3,7.5,6.4,9.9,15.4,9.2,9.1],"調理パン":[10.1,10.8,3.2,13.4,12.7,12.0,1.8],"総菜":[6.8,23.9,12.2,20.8,32.6,15.8,13.6]},"heatmap_feb":[6.2,1.7,5.5,6.6,8.9,2.4,2.6],"heatmap_mar":[8.3,12.5,6.5,13.3,18.9,11.5,7.5],"misc_feb_monthly":84476,"misc_mar_monthly":105338,"misc_mar_monthly_act":78154},"箕面白島二丁目":{"feb_cat":{"弁当":361335,"調理パン":276834,"総菜":10342},"mar_cat":{"弁当":249936,"調理パン":193715,"総菜":10212},"waste_cat":{"弁当":53027,"調理パン":26848,"総菜":3592},"tot_feb":648511,"tot_mar":453863,"tot_waste":83467,"opd_feb":28,"opd_mar":23,"daily_avg_feb":23161,"daily_avg_mar":19733,"misc_feb":1853,"misc_mar":1381,"misc_pct_feb":8,"misc_pct_mar":7,"growth_pct":-14.8,"waste_rate":15.5,"best_wd":"土","worst_wd":"水","worst_waste_wd":"水","wd_sales_feb":{"弁当":[24.5,24.2,23.5,24.5,24.5,23.2,24.5],"調理パン":[28.8,30.2,26.5,28.8,30.2,30.0,28.8],"総菜":[1.0,1.5,1.0,1.8,1.5,1.5,0.8]},"wd_sales_mar":{"弁当":[20.8,19.7,19.0,17.3,18.7,19.0,20.5],"調理パン":[26.8,23.3,23.7,25.7,26.0,29.0,25.8],"総菜":[2.0,1.7,1.7,1.7,1.0,2.0,0.8]},"wd_wr_feb":{"弁当":[6.7,6.7,10.5,5.8,2.0,13.9,7.5],"調理パン":[0.9,2.4,7.8,5.0,0.0,3.2,8.7],"総菜":[33.3,0.0,33.3,0.0,0.0,0.0,25.0]},"wd_wr_mar":{"弁当":[9.8,18.1,14.9,24.6,9.7,26.0,10.9],"調理パン":[9.3,10.3,25.3,9.4,3.7,11.2,5.5],"総菜":[20.0,0.0,16.7,16.7,0.0,25.0,50.0]},"heatmap_feb":[4.4,4.3,9.7,5.2,0.9,8.0,8.5],"heatmap_mar":[10.0,13.5,20.8,16.2,6.2,18.0,9.2],"misc_feb_monthly":51884,"misc_mar_monthly":42811,"misc_mar_monthly_act":31763},"豊中利倉東一丁目":{"feb_cat":{"弁当":269733,"調理パン":128574,"総菜":19093},"mar_cat":{"弁当":211856,"調理パン":89942,"総菜":22578},"waste_cat":{"弁当":27576,"調理パン":19976,"総菜":2856},"tot_feb":417400,"tot_mar":324376,"tot_waste":50408,"opd_feb":28,"opd_mar":23,"daily_avg_feb":14907,"daily_avg_mar":14103,"misc_feb":1043,"misc_mar":987,"misc_pct_feb":7,"misc_pct_mar":7,"growth_pct":-5.4,"waste_rate":13.4,"best_wd":"土","worst_wd":"日","worst_waste_wd":"月","wd_sales_feb":{"弁当":[23.2,22.8,22.5,23.0,23.2,19.0,21.0],"調理パン":[13.8,14.5,12.2,14.8,12.5,13.5,13.5],"総菜":[1.2,3.8,3.8,3.8,4.0,2.5,0.0]},"wd_sales_mar":{"弁当":[20.5,22.3,22.0,21.3,20.0,21.7,22.5],"調理パン":[12.0,8.7,12.7,11.3,13.7,15.3,10.8],"総菜":[4.5,5.0,4.7,4.3,4.3,4.3,0.8]},"wd_wr_feb":{"弁当":[10.6,2.2,0.0,1.1,0.0,9.5,5.6],"調理パン":[12.7,1.7,0.0,15.7,0.0,6.9,3.6],"総菜":[0.0,0.0,0.0,0.0,0.0,9.1,0.0]},"wd_wr_mar":{"弁当":[15.5,2.9,2.9,7.2,14.3,0.0,11.8],"調理パン":[36.0,10.3,9.5,20.9,2.4,9.8,6.5],"総菜":[0.0,0.0,0.0,18.7,13.3,0.0,40.0]},"heatmap_feb":[11.0,1.8,0.0,6.7,0.0,8.5,4.8],"heatmap_mar":[22.1,4.4,4.8,13.3,10.2,3.9,11.1],"misc_feb_monthly":29204,"misc_mar_monthly":30597,"misc_mar_monthly_act":22701},"豊中原田南一丁目":{"feb_cat":{"弁当":295093,"調理パン":114991,"総菜":1481},"mar_cat":{"弁当":277802,"調理パン":95976,"総菜":8616},"waste_cat":{"弁当":43825,"調理パン":7248,"総菜":1472},"tot_feb":411565,"tot_mar":382394,"tot_waste":52545,"opd_feb":24,"opd_mar":21,"daily_avg_feb":17149,"daily_avg_mar":18209,"misc_feb":1200,"misc_mar":1275,"misc_pct_feb":7,"misc_pct_mar":7,"growth_pct":6.2,"waste_rate":12.1,"best_wd":"月","worst_wd":"日","worst_waste_wd":"水","wd_sales_feb":{"弁当":[27.8,27.8,26.8,26.8,25.5,23.2,0.0],"調理パン":[16.0,16.2,15.8,15.5,15.0,14.8,0.0],"総菜":[0.0,0.0,0.0,0.5,0.5,0.5,0.0]},"wd_sales_mar":{"弁当":[32.8,30.3,28.0,31.7,27.0,25.0,5.2],"調理パン":[18.0,20.0,16.3,18.0,17.3,19.7,5.0],"総菜":[2.0,2.0,1.7,1.7,1.7,1.3,0.0]},"wd_wr_feb":{"弁当":[3.5,1.8,1.8,0.0,7.3,13.9,0.0],"調理パン":[1.5,0.0,7.4,0.0,3.2,6.3,0.0],"総菜":[0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"wd_wr_mar":{"弁当":[4.4,4.2,23.6,5.0,16.5,13.8,8.7],"調理パン":[4.0,0.0,12.5,10.0,3.7,6.3,4.8],"総菜":[0.0,0.0,28.6,0.0,28.6,0.0,0.0]},"heatmap_feb":[2.8,1.1,4.0,0.0,5.7,11.0,0.0],"heatmap_mar":[4.1,2.5,20.2,6.7,12.7,10.4,6.8],"misc_feb_monthly":28800,"misc_mar_monthly":39525,"misc_mar_monthly_act":26775},"豊中服部元町一丁目":{"feb_cat":{"弁当":307285,"調理パン":100616,"総菜":47717},"mar_cat":{"弁当":235175,"調理パン":75187,"総菜":38157},"waste_cat":{"弁当":27952,"調理パン":4964,"総菜":8306},"tot_feb":455618,"tot_mar":348519,"tot_waste":41222,"opd_feb":28,"opd_mar":23,"daily_avg_feb":16272,"daily_avg_mar":15153,"misc_feb":1139,"misc_mar":1061,"misc_pct_feb":7,"misc_pct_mar":7,"growth_pct":-6.9,"waste_rate":10.6,"best_wd":"金","worst_wd":"日","worst_waste_wd":"日","wd_sales_feb":{"弁当":[20.2,22.8,18.0,26.2,30.8,26.5,14.0],"調理パン":[6.8,8.5,10.0,9.8,12.0,9.0,7.0],"総菜":[5.5,5.0,5.5,5.5,7.8,4.5,5.2]},"wd_sales_mar":{"弁当":[19.5,18.3,21.3,21.3,28.3,18.3,16.8],"調理パン":[9.0,9.7,10.3,7.0,9.0,10.3,8.5],"総菜":[5.5,5.3,5.7,5.3,5.0,6.3,3.8]},"wd_wr_feb":{"弁当":[3.6,8.1,8.9,7.9,1.6,4.5,1.8],"調理パン":[6.9,8.1,0.0,0.0,4.0,2.7,6.7],"総菜":[12.0,9.1,18.5,0.0,11.4,10.0,4.5]},"wd_wr_mar":{"弁当":[2.5,9.8,13.5,3.0,8.6,14.1,10.7],"調理パン":[5.3,0.0,11.4,0.0,6.9,3.1,10.5],"総菜":[26.7,0.0,15.0,5.9,16.7,0.0,31.8]},"heatmap_feb":[5.8,8.2,8.2,5.1,3.8,4.8,3.7],"heatmap_mar":[8.1,5.7,13.2,2.9,9.3,8.7,14.1],"misc_feb_monthly":31892,"misc_mar_monthly":32891,"misc_mar_monthly_act":24403},"阪口清治 MO":{"feb_cat":{"弁当":260082,"調理パン":114118,"総菜":17767},"mar_cat":{"弁当":211192,"調理パン":83097,"総菜":19816},"waste_cat":{"弁当":23777,"調理パン":7996,"総菜":4277},"tot_feb":391967,"tot_mar":314105,"tot_waste":36050,"opd_feb":28,"opd_mar":23,"daily_avg_feb":13999,"daily_avg_mar":13657,"misc_feb":980,"misc_mar":956,"misc_pct_feb":7,"misc_pct_mar":7,"growth_pct":-2.4,"waste_rate":10.3,"best_wd":"火","worst_wd":"日","worst_waste_wd":"日","wd_sales_feb":{"弁当":[20.7,21.7,19.9,21.7,20.7,17.2,13.5],"調理パン":[11.9,12.2,12.4,12.8,12.7,12.0,10.4],"総菜":[2.0,2.5,2.5,2.8,2.9,2.3,1.3]},"wd_sales_mar":{"弁当":[20.8,21.5,20.8,21.2,19.5,17.0,12.8],"調理パン":[12.0,11.8,12.6,12.0,12.1,12.0,9.5],"総菜":[3.4,3.9,3.5,3.4,3.4,3.0,2.4]},"wd_wr_feb":{"弁当":[4.3,4.0,4.7,4.3,4.6,5.6,8.8],"調理パン":[4.0,2.8,4.0,4.8,3.6,3.0,4.2],"総菜":[8.9,10.8,10.4,7.5,10.8,4.6,10.1]},"wd_wr_mar":{"弁当":[6.4,5.8,8.4,7.3,7.7,10.6,11.8],"調理パン":[9.4,7.7,8.9,8.3,6.6,7.4,3.7],"総菜":[9.0,13.8,11.5,14.5,17.5,9.0,17.1]},"heatmap_feb":[4.5,4.1,4.9,4.7,4.8,4.6,7.0],"heatmap_mar":[7.7,7.3,8.9,8.3,8.4,9.3,9.4],"misc_feb_monthly":27440,"misc_mar_monthly":29636,"misc_mar_monthly_act":21988}},"heatmap":{"五月ケ丘東":[50.0,0.0,74.9,0.0,99.4,0.0,18.2],"南金田二丁目":[1.4,3.6,12.4,9.7,2.7,15.0,14.0],"吹田支店":[7.9,8.8,8.7,10.1,9.5,10.0,11.8],"吹田朝日町":[4.0,3.9,6.6,3.3,3.5,11.6,8.9],"吹田警察署前":[2.6,3.4,10.5,5.3,7.4,99.9,0.0],"吹田豊津中学校前":[1.6,0.0,8.8,2.1,3.1,6.6,13.6],"吹田青山台三丁目":[9.9,11.6,7.1,4.8,5.6,1.7,23.4],"大道南一丁目":[3.6,11.4,1.1,12.6,8.2,11.8,7.1],"新御堂筋上新田":[14.5,4.0,6.2,11.6,2.1,11.4,8.5],"東淀川大道南":[5.4,3.1,0.8,4.2,4.1,0.9,3.5],"東淀川豊里五丁目":[7.4,12.0,9.3,4.7,8.2,1.6,1.7],"江坂東":[4.3,8.0,1.2,8.1,5.3,6.6,10.0],"江坂駅南口":[8.3,12.5,6.5,13.3,18.9,11.5,7.5],"箕面白島二丁目":[10.0,13.5,20.8,16.2,6.2,18.0,9.2],"豊中利倉東一丁目":[22.1,4.4,4.8,13.3,10.2,3.9,11.1],"豊中原田南一丁目":[4.1,2.5,20.2,6.7,12.7,10.4,6.8],"豊中服部元町一丁目":[8.1,5.7,13.2,2.9,9.3,8.7,14.1],"阪口清治 MO":[7.7,7.3,8.9,8.3,8.4,9.3,9.4]},"profit":{"江坂駅南口":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[100.3,120.9,92.0,108.7,102.9,123.8,87.5,106.6]},"江坂東":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[134.2,117.7,78.1,110.5,106.4,100.3,124.5,93.0]},"五月ケ丘東":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[null,null,null,null,32.5,1170.3,-54.2,534.5]},"新御堂筋上新田":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[125.5,112.2,74.3,91.9,93.2,97.3,95.6,49.4]},"吹田青山台三丁目":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[103.6,67.4,78.6,79.9,87.8,73.8,91.3,94.6]},"吹田朝日町":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[190.7,169.3,173.2,173.4,180.6,182.6,195.2,207.4]},"吹田警察署前":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[135.3,197.2,135.9,155.5,154.4,128.0,216.2,142.6]},"吹田豊津中学校前":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[84.8,106.9,94.5,134.2,129.1,128.1,120.5,134.0]},"大道南一丁目":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[154.6,105.7,102.2,207.5,149.5,191.1,118.0,96.9]},"豊中利倉東一丁目":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[93.5,95.1,94.8,88.3,92.5,88.4,143.7,114.9]},"豊中服部元町一丁目":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[105.5,87.1,111.6,102.9,148.9,109.7,91.0,77.1]},"豊中原田南一丁目":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[132.3,131.3,104.7,138.7,124.4,147.1,79.9,91.6]},"東淀川大道南":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[147.1,94.5,105.3,124.6,117.7,133.4,178.2,98.0]},"東淀川豊里五丁目":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[151.7,108.2,143.3,133.1,127.2,117.2,112.7,86.4]},"南金田二丁目":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[135.0,107.9,89.0,87.1,106.0,86.6,81.3,116.8]},"阪口清治 MO":{"labels":["02-02週","02-09週","02-16週","02-23週","03-02週","03-09週","03-16週","★03-23週"],"values":[118.2,106.0,99.9,114.8,117.8,114.5,112.0,105.5]}},"org_daily_avg_feb":19451,"org_daily_avg_mar":18861,"org_daily_total_mar":293732,"sc_summary":{"髙橋SC":{"growth":5.2,"waste":13.1,"avg_daily_mar":24443,"count":3},"五島SC":{"growth":-9.5,"waste":8.6,"avg_daily_mar":17697,"count":2},"プラカスSC":{"growth":-8.2,"waste":6.8,"avg_daily_mar":17294,"count":4},"ダハルSC":{"growth":-4.7,"waste":10.6,"avg_daily_mar":16920,"count":2},"ビスワスSC":{"growth":-5.2,"waste":12.7,"avg_daily_mar":17698,"count":3},"フィSC":{"growth":9.9,"waste":4.8,"avg_daily_mar":18082,"count":1}}};
+const WD=D.weekdays,CATS=D.categories;
+const SC_COLORS={'髙橋SC':'#2b6cb0','五島SC':'#276749','プラカスSC':'#c05621','ダハルSC':'#6b46c1','ビスワスSC':'#c53030','フィSC':'#2c7a7b','吹田支店':'#718096','阪口清治 MO':'#a0aec0'};
+const TT=document.getElementById('tooltip');
+let ttTimer;
+
+function showTT(e,html){
+  clearTimeout(ttTimer);
+  TT.innerHTML=html;TT.style.display='block';
+  const x=e.clientX,y=e.clientY,w=TT.offsetWidth,h=TT.offsetHeight;
+  TT.style.left=Math.min(x+10,window.innerWidth-w-8)+'px';
+  TT.style.top=Math.max(y-h-10,8)+'px';
+}
+function hideTT(){ttTimer=setTimeout(()=>{TT.style.display='none';},200);}
+
+// ── Canvas helpers ──
+function mkC(id,height){
+  const c=document.getElementById(id);if(!c)return null;
+  const dpr=window.devicePixelRatio||1;
+  let w=c.parentElement.getBoundingClientRect().width||c.parentElement.clientWidth||c.parentElement.offsetWidth;
+  if(!w||w<10){
+    const page=c.closest('.page');
+    w=(page?page.clientWidth:0)||window.innerWidth||360;
+    w=Math.max(w-28,100);
+  }
+  c.width=w*dpr;c.height=height*dpr;c.style.width=w+'px';c.style.height=height+'px';
+  const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+  c._dpr=dpr;c._w=w;c._h=height;
+  return{ctx,w,h:height,dpr};
+}
+function gridLines(ctx,pad,cw,ch,maxV,minV,fmt){
+  const range=maxV-minV;
+  for(let i=0;i<=4;i++){
+    const v=minV+range*i/4,y=pad.top+ch-(v-minV)/range*ch;
+    ctx.strokeStyle='#edf2f7';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(pad.left+cw,y);ctx.stroke();
+    ctx.fillStyle='#a0aec0';ctx.font="10px -apple-system";ctx.textAlign='right';
+    ctx.fillText(fmt?fmt(v):Math.round(v).toLocaleString(),pad.left-3,y+3);
+  }
+}
+
+function drawBars(id,labels,datasets,opts={}){
+  const cv=mkC(id,opts.h||180);if(!cv)return;
+  const{ctx,w,h}=cv;
+  const pad={top:16,right:8,bottom:36,left:opts.lp||48};
+  const cw=w-pad.left-pad.right,ch=h-pad.top-pad.bottom;
+  ctx.clearRect(0,0,w,h);
+  const allV=datasets.flatMap(d=>d.data.filter(v=>v!=null&&!isNaN(v)));
+  if(!allV.length)return;
+  const minV=0,maxV=Math.max(...allV)*1.15||1,range=maxV;
+  gridLines(ctx,pad,cw,ch,maxV,minV,opts.fmt);
+  if(opts.ref!=null){
+    const yr=pad.top+ch-(opts.ref/range)*ch;
+    ctx.strokeStyle='#fc8181';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(pad.left,yr);ctx.lineTo(pad.left+cw,yr);ctx.stroke();ctx.setLineDash([]);
+  }
+  const n=labels.length,gw=cw/n,nd=datasets.length;
+  const bw=Math.min(gw*0.75/nd,26);
+  const gpad=(gw-bw*nd)/2;
+  // Store bar positions for tooltip
+  const cv_el=document.getElementById(id);
+  cv_el._bars=[];
+  datasets.forEach((ds,di)=>{
+    ds.data.forEach((v,i)=>{
+      if(v==null||isNaN(v))return;
+      const x=pad.left+gpad+i*gw+di*bw;
+      const bh=Math.max(2,v/range*ch);
+      const y=pad.top+ch-bh;
+      ctx.fillStyle=ds.color;
+      ctx.beginPath();
+      if(ctx.roundRect)ctx.roundRect(x,y,bw-1,bh,[2,2,0,0]);else ctx.rect(x,y,bw-1,bh);
+      ctx.fill();
+      cv_el._bars.push({x,y,w:bw-1,h:bh,label:labels[i],dslabel:ds.label,val:v});
+    });
+  });
+  ctx.fillStyle='#718096';ctx.font="10px -apple-system";ctx.textAlign='center';
+  labels.forEach((l,i)=>ctx.fillText(l,pad.left+gw*i+gw/2,h-pad.bottom+13));
+}
+
+function addBarTooltip(id,fmt){
+  const c=document.getElementById(id);if(!c)return;
+  function handle(e){
+    if(!c._bars)return;
+    const r=c.getBoundingClientRect(),dpr=c._dpr||1;
+    const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    for(const b of c._bars){
+      if(cx>=b.x&&cx<=b.x+b.w&&cy>=b.y&&cy<=b.y+b.h){
+        const val=fmt?fmt(b.val):(Math.round(b.val*10)/10).toLocaleString();
+        showTT(e.touches?e.touches[0]:e,`<b>${b.label}</b><br>${b.dslabel}: <b>${val}</b>`);
+        return;
+      }
+    }
+    hideTT();
+  }
+  c.addEventListener('mousemove',handle);
+  c.addEventListener('touchstart',e=>{e.preventDefault();handle(e);},{passive:false});
+  c.addEventListener('mouseleave',hideTT);
+  c.addEventListener('touchend',()=>setTimeout(hideTT,1500));
+}
+
+function drawLine(id,labels,datasets,opts={}){
+  const cv=mkC(id,opts.h||160);if(!cv)return;
+  const{ctx,w,h}=cv;
+  const pad={top:16,right:30,bottom:36,left:48};
+  const cw=w-pad.left-pad.right,ch=h-pad.top-pad.bottom;
+  ctx.clearRect(0,0,w,h);
+  const allV=datasets.flatMap(d=>d.data.filter(v=>v!=null));
+  if(!allV.length)return;
+  const minV=Math.min(0,...allV),rawMax=Math.max(...allV),maxV=(opts.yMax?Math.min(rawMax,opts.yMax):rawMax)*1.1||1,range=maxV-minV;
+  gridLines(ctx,pad,cw,ch,maxV,minV,opts.fmt);
+  if(opts.ref!=null){
+    const yr=pad.top+ch-(opts.ref-minV)/range*ch;
+    ctx.strokeStyle='#a0aec0';ctx.lineWidth=1.5;ctx.setLineDash([5,5]);
+    ctx.beginPath();ctx.moveTo(pad.left,yr);ctx.lineTo(pad.left+cw,yr);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#a0aec0';ctx.font="9px -apple-system";ctx.textAlign='left';
+    ctx.fillText('100%',pad.left+cw+2,yr+3);
+  }
+  const cv_el=document.getElementById(id);cv_el._pts=[];
+  datasets.forEach(ds=>{
+    const pts=labels.map((_,i)=>{
+      const v=ds.data[i];
+      if(v==null)return null;
+      const cv=Math.min(v,opts.yMax||v);
+      return{x:pad.left+i*cw/(labels.length-1||1),y:pad.top+ch-(cv-minV)/range*ch,v};
+    });
+    if(ds.fill){
+      const vp=pts.filter(Boolean);
+      if(vp.length>1){
+        ctx.beginPath();ctx.moveTo(vp[0].x,vp[0].y);vp.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
+        ctx.lineTo(vp[vp.length-1].x,pad.top+ch);ctx.lineTo(vp[0].x,pad.top+ch);
+        ctx.closePath();ctx.fillStyle=ds.fill;ctx.fill();
+      }
+    }
+    ctx.strokeStyle=ds.color;ctx.lineWidth=2;ctx.lineJoin='round';
+    ctx.beginPath();let st=false;
+    pts.forEach(p=>{if(!p){st=false;return;}if(!st){ctx.moveTo(p.x,p.y);st=true;}else ctx.lineTo(p.x,p.y);});
+    ctx.stroke();
+    pts.forEach((p,i)=>{
+      if(!p)return;
+      ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);
+      ctx.fillStyle=(opts.ref&&p.v>=opts.ref)?'#276749':'#c53030';
+      ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+      cv_el._pts.push({x:p.x,y:p.y,label:labels[i],dslabel:ds.label,val:p.v,orig:ds.data[i]});
+    });
+  });
+  ctx.fillStyle='#718096';ctx.font="10px -apple-system";ctx.textAlign='center';
+  labels.forEach((l,i)=>ctx.fillText(l,pad.left+i*cw/(labels.length-1||1),h-pad.bottom+13));
+}
+
+function addLineTooltip(id,fmt){
+  const c=document.getElementById(id);if(!c)return;
+  function handle(e){
+    if(!c._pts)return;
+    const r=c.getBoundingClientRect();
+    const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    let closest=null,minD=20;
+    for(const p of c._pts){
+      const d=Math.sqrt((cx-p.x)**2+(cy-p.y)**2);
+      if(d<minD){minD=d;closest=p;}
+    }
+    if(closest){
+      const v=fmt?fmt(closest.orig??closest.val):closest.val?.toFixed(1);
+      showTT(e.touches?e.touches[0]:e,`<b>${closest.label}</b><br>${closest.dslabel}: <b>${v}</b>${closest.orig>250?'<br><span style="color:#fc8181">※実値'+closest.orig+'%</span>':''}`);
+    }else hideTT();
+  }
+  c.addEventListener('mousemove',handle);
+  c.addEventListener('touchstart',e=>{e.preventDefault();handle(e);},{passive:false});
+  c.addEventListener('mouseleave',hideTT);
+  c.addEventListener('touchend',()=>setTimeout(hideTT,1500));
+}
+
+// ── Helpers ──
+function wrC(v){return v>10?'#c53030':v>5?'#c05621':'#276749';}
+function evalB(pct,wr){
+  if(pct>=0&&wr<5)return['◎優秀','g'];if(pct>=-5&&wr<10)return['○良好','b'];
+  if(pct<-10&&wr>10)return['▲要改善','y'];if(pct<-15||wr>15)return['✗要対策','w'];
+  return['△注視','p'];
+}
+function mtCls(p){return p===10?'mt10':p===8?'mt8':p===7?'mt7':'mt0';}
+function mtLbl(p){return p===0?'対象外':p+'%雑益';}
+
+// ── OVERVIEW ──
+function renderOverview(){
+  const stores=D.stores.filter(s=>D.store_data[s]&&!['吹田支店','阪口清治 MO'].includes(s)&&D.store_data[s].daily_avg_feb>0);
+  const avgGrowth=stores.reduce((a,s)=>a+D.store_data[s].growth_pct,0)/stores.length;
+  const avgWR=D.stores.filter(s=>D.store_data[s]&&s!=='阪口清治 MO').reduce((a,s)=>a+D.store_data[s].waste_rate,0)/D.stores.filter(s=>D.store_data[s]&&s!=='阪口清治 MO').length;
+  const totals=WD.map((_,i)=>CATS.reduce((s,c)=>(D.wd_sales_mar[c]?.[i]||0)+s,0));
+  const bw=WD[totals.indexOf(Math.max(...totals))],ww=WD[totals.indexOf(Math.min(...totals))];
+  const br=D.store_data['吹田支店']||{};
+  document.getElementById('kpi-top').innerHTML=[
+    {l:'組織 1日平均売上高（3月）',v:(D.org_daily_avg_mar||0).toLocaleString()+'円',s:'16店舗平均',c:'#276749'},
+    {l:'組織合計 1日売上（3月）',v:Math.round((D.org_daily_total_mar||0)/1000)+'K円',s:'支店含む全店',c:'#2b6cb0'},
+    {l:'2月→3月 平均伸長率',v:(avgGrowth>=0?'+':'')+avgGrowth.toFixed(1)+'%',s:'1日平均ベース',c:avgGrowth>=0?'#276749':'#c53030'},
+    {l:'3月 平均廃棄率',v:avgWR.toFixed(1)+'%',s:'全店舗平均',c:wrC(avgWR)},
+    {l:'最多販売曜日（3月）',v:bw+'曜日',s:'最少: '+ww+'曜日',c:'#2b6cb0'},
+    {l:'支店 1日平均（3月）',v:Math.round((br.daily_avg_mar||0)/1000)+'K円',s:`廃棄${br.waste_rate||0}%`,c:'#6b46c1'},
+  ].map(x=>`<div class="kpi"><div class="kpi-label">${x.l}</div><div class="kpi-val" style="color:${x.c}">${x.v}</div><div class="kpi-sub">${x.s}</div></div>`).join('');
+
+  // 曜日グラフ
+  const feb=WD.map((_,i)=>CATS.reduce((s,c)=>(D.wd_sales_feb[c]?.[i]||0)+s,0));
+  const mar=WD.map((_,i)=>CATS.reduce((s,c)=>(D.wd_sales_mar[c]?.[i]||0)+s,0));
+  drawBars('c-wd-org',WD.map(w=>w+'曜'),[
+    {data:feb,color:'#2b6cb0',label:'2月'},
+    {data:mar,color:'#276749',label:'3月'}
+  ],{fmt:v=>v.toFixed(1)});
+  addBarTooltip('c-wd-org',v=>(Math.round(v*10)/10).toFixed(1));
+
+  // ランキング
+  const sorted=[...D.stores].filter(s=>D.store_data[s]).sort((a,b)=>D.store_data[b].growth_pct-D.store_data[a].growth_pct);
+  const maxAbs=Math.max(...sorted.map(s=>Math.abs(D.store_data[s].growth_pct)));
+  document.getElementById('rank-list').innerHTML=sorted.map(s=>{
+    const sd=D.store_data[s],pct=sd.growth_pct,ib=s==='吹田支店'||s==='阪口清治 MO';
+    return`<div class="rank-row"><span style="font-size:11px;font-weight:600;min-width:100px;color:${ib?'#6b46c1':'#1a202c'}">${s}</span><div class="rank-bar-wrap"><div class="rank-bar" style="width:${Math.abs(pct)/maxAbs*100}%;background:${pct>=0?'#276749':'#c53030'}"></div></div><span style="font-size:12px;font-weight:800;min-width:56px;text-align:right;color:${pct>=0?'#276749':'#c53030'}">${pct>=0?'+':''}${pct}%</span></div>`;
+  }).join('');
+
+  // テーブル
+  document.getElementById('tbl-overview').innerHTML=`<tr><th>店舗</th><th>SC</th><th>2月1日均(円)</th><th>3月1日均(円)</th><th>伸長率</th><th>廃棄率</th><th>評価</th></tr>`+sorted.map(s=>{
+    const sd=D.store_data[s];
+    const sc=Object.entries(D.sc_groups).find(([,v])=>v.includes(s));
+    const scN=sc?sc[0]:(s==='吹田支店'?'支店':'MO');
+    const[b,cl]=evalB(sd.growth_pct,sd.waste_rate);
+    return`<tr><td style="font-size:11px">${s}</td><td style="font-size:10px;color:${SC_COLORS[scN]||'#718096'}">${scN}</td><td>${sd.daily_avg_feb.toLocaleString()}</td><td>${sd.daily_avg_mar.toLocaleString()}</td><td style="color:${sd.growth_pct>=0?'#276749':'#c53030'};font-weight:700">${sd.growth_pct>=0?'+':''}${sd.growth_pct}%</td><td style="color:${wrC(sd.waste_rate)};font-weight:700">${sd.waste_rate}%</td><td><span class="badge ${cl}">${b}</span></td></tr>`;
+  }).join('');
+}
+
+// ── SC別 ──
+function renderSC(){
+  const ASC=D.asc_groups;
+  document.getElementById('sc-wrap').innerHTML=Object.keys(D.sc_groups).map(sc=>{
+    const ss=D.sc_groups[sc],color=SC_COLORS[sc]||'#718096';
+    const ib=sc==='吹田支店'||sc==='阪口清治 MO';
+    const sum=D.sc_summary?.[sc]||{};
+    const ascBadges=Object.entries(ASC).filter(([,v])=>v.some(s=>ss.includes(s))).map(([n,st])=>`<span class="badge b" style="margin:0 2px;font-size:10px">${n}: ${st.filter(s=>ss.includes(s)).join('/')}</span>`).join('');
+    const rows=ss.map(s=>{
+      if(!D.store_data[s])return'';
+      const sd=D.store_data[s];
+      const[b,cl]=evalB(sd.growth_pct,sd.waste_rate);
+      return`<tr><td style="font-size:11px">${s}</td><td>${sd.daily_avg_feb.toLocaleString()}</td><td>${sd.daily_avg_mar.toLocaleString()}</td><td style="color:${sd.growth_pct>=0?'#276749':'#c53030'};font-weight:700">${sd.growth_pct>=0?'+':''}${sd.growth_pct}%</td><td style="color:${wrC(sd.waste_rate)};font-weight:700">${sd.waste_rate}%</td><td><span class="mt ${mtCls(sd.misc_pct_mar)}">${mtLbl(sd.misc_pct_mar)}</span></td><td><span class="badge ${cl}">${b}</span></td></tr>`;
+    }).join('');
+    const growthLabel=sum.growth!=null?`伸長${sum.growth>=0?'+':''}${sum.growth}% ／ 廃棄${sum.waste}% ／ 1日平均¥${(sum.avg_daily_mar||0).toLocaleString()}`:'';
+    return`<div class="sc-card"><div class="sc-hdr" style="background:${color}"><span>${sc}${ib?' ★参考':''} — ${ss.length}店舗</span><span style="font-size:10px;opacity:.9">${growthLabel}</span></div><div class="sc-body">${ascBadges?`<div style="margin-bottom:8px">${ascBadges}</div>`:''}<div class="ovx"><table class="tbl"><tr><th>店舗</th><th>2月1日均</th><th>3月1日均</th><th>伸長率</th><th>廃棄率</th><th>雑益</th><th>評価</th></tr>${rows}</table></div></div></div>`;
+  }).join('');
+}
+
+// ── 個店 ──
+let storeCat='全体';
+function setStoreCat(cat,el){storeCat=cat;document.querySelectorAll('#store-cats .cat-pill').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderStore();}
+function renderStore(){
+  const s=document.getElementById('sel-store').value;
+  const sd=D.store_data[s];if(!sd)return;
+  const cats=storeCat==='全体'?CATS:[storeCat];
+  const sc=Object.entries(D.sc_groups).find(([,v])=>v.includes(s));
+  const scL=sc?sc[0]:(s==='吹田支店'?'支店':'MO');
+  document.getElementById('store-kpi').innerHTML=[
+    {l:'担当SC',v:scL,s:'',c:SC_COLORS[scL]||'#718096'},
+    {l:'2月 1日平均売上高',v:sd.daily_avg_feb.toLocaleString()+'円',s:`営業${sd.opd_feb}日`,c:'#2b6cb0'},
+    {l:'3月 1日平均売上高',v:sd.daily_avg_mar.toLocaleString()+'円',s:`営業${sd.opd_mar}日`,c:'#276749'},
+    {l:'2月→3月 伸長率',v:(sd.growth_pct>=0?'+':'')+sd.growth_pct+'%',s:'1日平均ベース',c:sd.growth_pct>=0?'#276749':'#c53030'},
+    {l:'廃棄率（3月）',v:sd.waste_rate+'%',s:'廃棄÷(販売+廃棄)',c:wrC(sd.waste_rate)},
+    {l:'雑益（3月見込）※31日着地',v:sd.misc_mar_monthly?.toLocaleString()+'円',s:'実績'+( sd.misc_mar_monthly_act||0).toLocaleString()+'円 / '+mtLbl(sd.misc_pct_mar),c:'#6b46c1'},
+    {l:'最多販売曜日',v:sd.best_wd+'曜日',s:'3月実績',c:'#2b6cb0'},
+    {l:'最少販売曜日',v:sd.worst_wd+'曜日',s:'3月実績',c:'#c53030'},
+  ].map(x=>`<div class="kpi"><div class="kpi-label">${x.l}</div><div class="kpi-val" style="color:${x.c};font-size:18px">${x.v}</div><div class="kpi-sub">${x.s}</div></div>`).join('');
+
+  const wdF=WD.map((_,i)=>cats.reduce((t,c)=>(sd.wd_sales_feb[c]?.[i]||0)+t,0));
+  const wdM=WD.map((_,i)=>cats.reduce((t,c)=>(sd.wd_sales_mar[c]?.[i]||0)+t,0));
+  drawBars('c-store-sales',WD.map(w=>w+'曜'),[{data:wdF,color:'#2b6cb0',label:'2月'},{data:wdM,color:'#276749',label:'3月'}],{fmt:v=>v.toFixed(1)});
+  addBarTooltip('c-store-sales',v=>v.toFixed(1));
+
+  const wrF=WD.map((_,i)=>cats.reduce((t,c)=>(sd.wd_wr_feb[c]?.[i]||0)+t,0)/cats.length);
+  const wrM=WD.map((_,i)=>cats.reduce((t,c)=>(sd.wd_wr_mar[c]?.[i]||0)+t,0)/cats.length);
+  drawBars('c-store-wr',WD.map(w=>w+'曜'),[{data:wrF,color:'#2b6cb0',label:'2月'},{data:wrM,color:'#c53030',label:'3月'}],{fmt:v=>v.toFixed(1)+'%',ref:10});
+  addBarTooltip('c-store-wr',v=>v.toFixed(1)+'%');
+
+  drawBars('c-store-cat',CATS,[
+    {data:CATS.map(c=>Math.round((sd.feb_cat[c]||0)/sd.opd_feb)),color:'#2b6cb0',label:'2月1日平均'},
+    {data:CATS.map(c=>Math.round((sd.mar_cat[c]||0)/sd.opd_mar)),color:'#276749',label:'3月1日平均'},
+    {data:CATS.map(c=>Math.round((sd.waste_cat[c]||0)/sd.opd_mar)),color:'#c53030',label:'廃棄1日平均(3月)'}
+  ],{fmt:v=>Math.round(v/1000)+'K',lp:44,h:160});
+  addBarTooltip('c-store-cat',v=>Math.round(v).toLocaleString()+'円');
+}
+
+// ── 曜日 ──
+let wdCat='全体';
+function setWdCat(cat,el){wdCat=cat;document.querySelectorAll('#wd-cats .cat-pill').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderWdCharts();}
+function getWd(cat,month,store){
+  if(store&&store!=='__org__'&&D.store_data[store]){const sd=D.store_data[store],k=month===2?'wd_sales_feb':'wd_sales_mar';if(cat==='全体')return WD.map((_,i)=>CATS.reduce((s,c)=>(sd[k][c]?.[i]||0)+s,0));return sd[k][cat]||Array(7).fill(0);}
+  if(cat==='全体')return WD.map((_,i)=>CATS.reduce((s,c)=>(D['wd_sales_'+(month===2?'feb':'mar')][c]?.[i]||0)+s,0));
+  return D['wd_sales_'+(month===2?'feb':'mar')][cat]||Array(7).fill(0);
+}
+function getWr(cat,month,store){
+  if(store&&store!=='__org__'&&D.store_data[store]){const sd=D.store_data[store],k=month===2?'wd_wr_feb':'wd_wr_mar';if(cat==='全体')return WD.map((_,i)=>CATS.reduce((s,c)=>(sd[k][c]?.[i]||0)+s,0)/CATS.length);return sd[k][cat]||Array(7).fill(0);}
+  if(cat==='全体')return WD.map((_,i)=>CATS.reduce((s,c)=>(D['wr_'+(month===2?'feb':'mar')][c]?.[i]||0)+s,0)/CATS.length);
+  return D['wr_'+(month===2?'feb':'mar')][cat]||Array(7).fill(0);
+}
+function renderWdCharts(){
+  const store=document.getElementById('wd-store').value;
+  drawBars('c-wd-sales',WD.map(w=>w+'曜'),[{data:getWd(wdCat,2,store),color:'#2b6cb0',label:'2月'},{data:getWd(wdCat,3,store),color:'#276749',label:'3月'}],{fmt:v=>v.toFixed(1),h:200});
+  addBarTooltip('c-wd-sales',v=>v.toFixed(1));
+  drawBars('c-wd-wr',WD.map(w=>w+'曜'),[{data:getWr(wdCat,2,store),color:'#2b6cb0',label:'2月'},{data:getWr(wdCat,3,store),color:'#c53030',label:'3月'}],{fmt:v=>v.toFixed(1)+'%',ref:10,h:200});
+  addBarTooltip('c-wd-wr',v=>v.toFixed(1)+'%');
+  // テーブル
+  const cats=wdCat==='全体'?CATS:[wdCat];
+  let h=`<tr><th>曜日</th>${cats.map(c=>`<th>2月_${c}</th><th>3月_${c}</th>`).join('')}<th>2月計</th><th>3月計</th><th>増減</th></tr>`;
+  WD.forEach(wd=>{
+    const wi=WD.indexOf(wd);let f2=0,f3=0;
+    h+=`<tr><td style="font-weight:700">${wd}曜</td>`;
+    cats.forEach(c=>{const v2=getWd(c,2,store)[wi],v3=getWd(c,3,store)[wi];f2+=v2;f3+=v3;h+=`<td>${v2.toFixed(1)}</td><td>${v3.toFixed(1)}</td>`;});
+    const d=f3-f2;h+=`<td style="font-weight:700">${f2.toFixed(1)}</td><td style="font-weight:700">${f3.toFixed(1)}</td><td style="font-weight:700;color:${d>=0?'#276749':'#c53030'}">${d>=0?'+':''}${d.toFixed(1)}</td></tr>`;
+  });
+  document.getElementById('tbl-wd').innerHTML=h;
+}
+
+// ── ヒートマップ ──
+function renderHeatmap(){
+  const grp=document.getElementById('hm-grp').value;
+  const stores=grp==='__all__'?D.stores:(D.sc_groups[grp]||D.stores);
+  function hc(v){if(v>15)return{bg:'#fc8181',fg:'#7b341e'};if(v>10)return{bg:'#fbd38d',fg:'#7b341e'};if(v>5)return{bg:'#fefcbf',fg:'#744210'};return{bg:'#c6f6d5',fg:'#22543d'};}
+  let html=`<table style="border-collapse:separate;border-spacing:2px;min-width:420px"><tr><td style="min-width:100px;font-size:10px;color:#718096;padding:4px 6px">店舗</td>${WD.map(w=>`<td style="width:44px;text-align:center;font-size:10px;color:#718096;padding:4px 2px">${w}曜</td>`).join('')}<td style="width:48px;text-align:center;font-size:10px;color:#718096;padding:4px 2px">平均</td></tr>`;
+  stores.forEach(s=>{
+    if(!D.heatmap[s])return;
+    const vals=D.heatmap[s],avg=vals.reduce((a,b)=>a+b,0)/vals.length,ac=hc(avg);
+    html+=`<tr><td style="padding:2px 6px;font-size:11px;font-weight:600">${s}</td>`;
+    vals.forEach((v,i)=>{
+      const c=hc(v);
+      html+=`<td style="padding:1px"><div class="hm-cell" style="background:${c.bg};color:${c.fg}" onclick="showTT({clientX:event.clientX,clientY:event.clientY},'<b>${s}</b><br>${WD[i]}曜日<br>廃棄率: <b>${v.toFixed(1)}%</b>')">${v>30?'30+':v.toFixed(1)}%</div></td>`;
+    });
+    html+=`<td style="padding:1px"><div class="hm-cell" style="background:${ac.bg};color:${ac.fg};width:48px;font-weight:800">${avg.toFixed(1)}%</div></td></tr>`;
+  });
+  document.getElementById('hm-wrap').innerHTML=html+'</table>';
+}
+
+// ── 雑益 ──
+function renderMisc(){
+  const sorted=[...D.stores].filter(s=>D.store_data[s]).sort((a,b)=>D.store_data[b].daily_avg_mar-D.store_data[a].daily_avg_mar);
+  let h=`<tr><th>店舗</th><th>SC</th><th>2月<br>1日均(円)</th><th>2月<br>雑益率</th><th>2月<br>月合計(円)</th><th>3月<br>1日均(円)</th><th>3月<br>雑益率</th><th>3月<br>月合計見込(円)<br>※31日着地</th><th>増減<br>(円)</th></tr>`;
+  sorted.forEach(s=>{
+    const sd=D.store_data[s];
+    const sc=Object.entries(D.sc_groups).find(([,v])=>v.includes(s));
+    const scN=sc?sc[0]:(s==='吹田支店'?'支店':'MO');
+    const diff=(sd.misc_mar_monthly||0)-(sd.misc_feb_monthly||0);
+    h+=`<tr><td style="font-size:11px">${s}</td><td style="font-size:10px;color:${SC_COLORS[scN]||'#718096'}">${scN}</td><td>${sd.daily_avg_feb.toLocaleString()}</td><td><span class="mt ${mtCls(sd.misc_pct_feb)}">${mtLbl(sd.misc_pct_feb)}</span></td><td style="color:#2b6cb0;font-weight:700">${(sd.misc_feb_monthly||0).toLocaleString()}</td><td>${sd.daily_avg_mar.toLocaleString()}</td><td><span class="mt ${mtCls(sd.misc_pct_mar)}">${mtLbl(sd.misc_pct_mar)}</span></td><td style="color:#276749;font-weight:700">${(sd.misc_mar_monthly||0).toLocaleString()}<br><span style="font-size:9px;color:#718096">実績:${(sd.misc_mar_monthly_act||0).toLocaleString()}</span></td><td style="font-weight:700;color:${diff>=0?'#276749':'#c53030'}">${diff>=0?'+':''}${diff.toLocaleString()}</td></tr>`;
+  });
+  document.getElementById('tbl-misc').innerHTML=h;
+}
+
+// ── 荒利益 ──
+function renderProfit(){
+  const sel=document.getElementById('profit-sel').value;
+  const wrap=document.getElementById('profit-wrap');
+  const keys=Object.keys(D.profit);
+  if(sel==='__all__'){
+    wrap.innerHTML=`<div class="profit-grid">${keys.map(s=>{
+      const hasClip=D.profit[s].values.some(v=>v!=null&&v>250);
+      return`<div class="card" style="padding:12px"><div style="font-size:11px;font-weight:700;margin-bottom:6px">${s}${hasClip?'<span style="font-size:9px;color:#c53030;margin-left:4px">※250%超クリップ</span>':''}</div><div class="chart-wrap"><canvas id="pc-${s.replace(/[\s\W]/g,'_')}" height="130"></canvas></div></div>`;
+    }).join('')}</div>`;
+    // IntersectionObserver で画面に入ったタイミングで描画
+    const io=new IntersectionObserver((entries)=>{
+      entries.forEach(entry=>{
+        if(!entry.isIntersecting)return;
+        const cel=entry.target;
+        const s=cel.dataset.store;
+        const pd=D.profit[s];if(!pd)return;
+        const id=cel.id;
+        const clipped=pd.values.map(v=>v!=null?Math.min(v,250):null);
+        // 幅を強制設定してから描画
+        const pw=cel.closest('.card')?.clientWidth||wrap.clientWidth||window.innerWidth;
+        cel.style.width=(pw-24)+'px';
+        drawLine(id,pd.labels,[{data:clipped,color:'#2b6cb0',fill:'rgba(43,108,176,0.08)',label:s}],{ref:100,yMax:250,fmt:v=>v.toFixed(0)+'%',h:130});
+        addLineTooltip(id,v=>v?.toFixed(1)+'%');
+        io.unobserve(cel);
+      });
+    },{threshold:0.01});
+    keys.forEach(s=>{
+      const id='pc-'+s.replace(/[\s\W]/g,'_');
+      const cel=document.getElementById(id);
+      if(cel){cel.dataset.store=s;io.observe(cel);}
+    });
+  }else{
+    const pd=D.profit[sel];if(!pd)return;
+    wrap.innerHTML=`<div class="card"><div class="card-title">${sel} — 荒利益高前年比 週次推移</div><div class="chart-wrap"><canvas id="pc-single" height="220"></canvas></div></div>`;
+    const clipped=pd.values.map(v=>v!=null?Math.min(v,300):null);
+    drawLine('pc-single',pd.labels,[{data:clipped,color:'#2b6cb0',fill:'rgba(43,108,176,0.1)',label:sel}],{ref:100,yMax:300,fmt:v=>v.toFixed(0)+'%',h:220});
+    addLineTooltip('pc-single',v=>v?.toFixed(1)+'%');
+  }
+}
+
+// ── INIT ──
+function initSelects(){
+  const ss=document.getElementById('sel-store');
+  D.stores.forEach(s=>{const o=document.createElement('option');o.value=o.textContent=s;ss.appendChild(o);});
+  const ws=document.getElementById('wd-store');
+  D.stores.forEach(s=>{const o=document.createElement('option');o.value=o.textContent=s;ws.appendChild(o);});
+  const hg=document.getElementById('hm-grp');
+  Object.keys(D.sc_groups).forEach(sc=>{const o=document.createElement('option');o.value=sc;o.textContent=sc;hg.appendChild(o);});
+  const ps=document.getElementById('profit-sel');
+  Object.keys(D.profit).forEach(s=>{const o=document.createElement('option');o.value=o.textContent=s;ps.appendChild(o);});
+}
+
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');el.classList.add('active');
+  setTimeout(()=>{
+    if(id==='p-overview')renderOverview();
+    if(id==='p-sc')renderSC();
+    if(id==='p-store')renderStore();
+    if(id==='p-weekday')renderWdCharts();
+    if(id==='p-heatmap')renderHeatmap();
+    if(id==='p-misc')renderMisc();
+    if(id==='p-profit')renderProfit();
+  },30);
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  initSelects();
+  renderOverview();
+});
+window.addEventListener('resize',()=>{
+  const a=document.querySelector('.page.active')?.id;
+  if(a==='p-overview')renderOverview();
+  if(a==='p-store')renderStore();
+  if(a==='p-weekday')renderWdCharts();
+  if(a==='p-profit')renderProfit();
+});
+</script>
+</body>
+</html>
